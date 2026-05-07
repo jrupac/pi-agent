@@ -1,0 +1,6 @@
+# Override for pi-run:
+# - Mounts npm-global read-only (extensions are managed via pi-install-all.sh)
+services:
+  agent:
+    volumes:
+      - "./settings/npm-global:/root/.pi/npm-global:ro"

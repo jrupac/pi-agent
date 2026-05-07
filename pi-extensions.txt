@@ -1,0 +1,9 @@
+# pi-extensions.txt — list of npm extensions to keep installed.
+# One package per line, comments (#) and blank lines are ignored.
+# Run pi-install-all.sh to sync.
+
+npm:@juicesharp/rpiv-ask-user-question
+npm:pi-tool-display
+npm:pi-show-diffs
+npm:@ifi/oh-pi-themes
+npm:pi-prompt-template-model

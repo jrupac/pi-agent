@@ -33,4 +33,4 @@ PI_SETTINGS="$SCRIPT_DIR/settings"
 # --no-recreate means this is a no-op if everything is already running.
 docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --no-recreate
 
-exec docker compose -f "$SCRIPT_DIR/docker-compose.yml" run --rm agent
+exec docker compose -f "$SCRIPT_DIR/docker-compose.yml" -f "$SCRIPT_DIR/pi-run-override.yml" run --rm agent

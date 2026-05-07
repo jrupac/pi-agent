@@ -1,0 +1,7 @@
+# Override for pi-install and pi-install-all.sh:
+# - Adds web-egress network for npm registry access
+# - npm-global is writable via the parent settings mount (no ro override from pi-run-override.yml)
+services:
+  agent:
+    networks:
+      - web-egress

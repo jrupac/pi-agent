@@ -1,6 +1,6 @@
 ---
 description: Review code against a plan and write a structured report
-model: local-gemma-31B
+model: local-planning
 boomerang: true
 restore: true
 ---

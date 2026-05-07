@@ -31,22 +31,12 @@ export PI_SETTINGS="$SCRIPT_DIR/settings"
 # Ensure infrastructure services are up.
 docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --no-recreate
 
+OVERRIDE="$SCRIPT_DIR/pi-install-override.yml"
+
 if [ "$SUBCOMMAND" = "install" ]; then
-  # Temporary compose override that adds web-egress to the agent for this run only.
-  OVERRIDE=$(mktemp /tmp/pi-install-XXXXXX.yml)
-  trap 'rm -f "$OVERRIDE"' EXIT
-
-  cat > "$OVERRIDE" <<'EOF'
-services:
-  agent:
-    networks:
-      - web-egress
-EOF
-
   docker compose -f "$SCRIPT_DIR/docker-compose.yml" -f "$OVERRIDE" \
     run --rm agent install "$EXTENSION"
 else
-  # Uninstall only touches local settings — no egress needed.
-  docker compose -f "$SCRIPT_DIR/docker-compose.yml" \
+  docker compose -f "$SCRIPT_DIR/docker-compose.yml" -f "$OVERRIDE" \
     run --rm agent uninstall "$EXTENSION"
 fi

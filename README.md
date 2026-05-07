@@ -36,14 +36,21 @@ pi-agent/
 ├── docker-compose.yml          # infrastructure networks + web-skill + agent service definition
 ├── Dockerfile                  # node:bookworm-slim + pi + Go + Bun + dev tools
 ├── pi-run                      # launch script: pi-run <path-to-repo>
+├── pi-run-override.yml         # compose override (npm-global read-only)
+├── pi-install                  # one-off install/uninstall: pi-install npm:pkg
+├── pi-install-all.sh           # declarative sync: reads pi-extensions.txt and syncs
+├── pi-install-override.yml     # compose override (web-egress for npm access)
+├── pi-extensions.txt           # manifest of desired npm extensions
 ├── web-skill/
 │   ├── Dockerfile              # node:alpine
 │   ├── package.json
 │   └── server.js               # GET /search?q= and GET /fetch?url= endpoints (DDG lite scraper)
 └── settings/                   # bind-mounted to ~/.pi inside the agent container
+    ├── npm-global/             # installed npm packages (read-only at runtime)
+    ├── npm-cache/              # npm cache (writable)
     └── agent/
-        ├── APPEND_SYSTEM.md    # appended to the system prompt every session (workspace + web skill instructions)
-        ├── settings.json       # defaultProvider + defaultModel
+        ├── APPEND_SYSTEM.md    # appended to the system prompt every session
+        ├── settings.json       # defaultProvider + defaultModel + packages list
         └── models.json         # local llama.cpp provider definition
 ```
 
@@ -174,14 +181,32 @@ There is no privilege escalation: container root is still just you on the host.
 
 ## Installing extensions
 
-The agent container normally has no internet access, so `pi install` must be done via a helper script that temporarily opens egress for a single install run:
+The agent container has no default internet access. Extensions are installed via scripts that temporarily open egress.
+
+### Declarative (recommended)
+
+List desired extensions in `pi-extensions.txt` (one per line, `npm:` prefix, `#` for comments), then run:
+
+```bash
+pi-install-all.sh
+```
+
+This reads the manifest, compares against what's currently installed, and does both installs and uninstalls in a single container invocation. If the list hasn't changed, it exits immediately with zero overhead.
+
+> Note: comparison is an exact string match on `npm:` prefixed names. Extensions installed from `git:` or `https://` sources in the manifest will not match those entries — use the same format in the manifest as what appears in `settings.json`.
+
+The `npm-global/` directory is mounted read-only via `pi-run-override.yml` — the install override omits that constraint, so npm-global is writable through the parent `settings` mount during install/uninstall.
+
+### One-off
+
+For a single install or uninstall without touching the manifest:
 
 ```bash
 pi-install npm:some-extension          # install
 pi-install uninstall npm:some-extension # uninstall
 ```
 
-Replace `npm:some-extension` with any source `pi install` accepts (`git:`, `https://`, `ssh://`). The installed package lands in `settings/` (the bind-mounted settings dir) and persists across container rebuilds and restarts. Uninstalling only modifies local settings and requires no internet access.
+Replace `npm:some-extension` with any source `pi install` accepts (`git:`, `https://`, `ssh://`). The installed package lands in `settings/` (the bind-mounted settings dir) and persists across container rebuilds and restarts.
 
 If the extension is just a single `.ts` file with no npm dependencies, you can drop it directly into `settings/agent/extensions/` instead.
 
