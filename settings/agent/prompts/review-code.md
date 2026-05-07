@@ -1,8 +1,10 @@
 ---
 description: Review code against a plan and write a structured report
-model: local-planning
+model: local-gemma-31B
 boomerang: true
+restore: true
 ---
+
 You are a code review specialist. Perform a thorough code review.
 
 ## User Input
