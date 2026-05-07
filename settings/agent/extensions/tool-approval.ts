@@ -2,8 +2,9 @@
  * Tool Approval Extension
  *
  * Prompts for confirmation before:
- *   - write / edit tool calls (always)
- *   - any bash command not in the safe allowlist
+ *   - write tool calls (gating disabled — pi-tool-display handles display)
+ *   - edit tool calls (gating disabled — pi-tool-display handles display)
+ *   - any bash command not in the safe allowlist (or containing && / ;)
  *
  * Three options on every prompt:
  *   "Allow this"             → approve just this one call
@@ -25,9 +26,6 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
-  // Track approved paths for write/edit (exact absolute paths)
-  const approvedWritePaths: Set<string> = new Set();
-
   // Track approved bash commands for this session (exact normalized command)
   const approvedBashCommands: Set<string> = new Set();
 
@@ -105,6 +103,11 @@ export default function (pi: ExtensionAPI) {
   ];
 
   function isSafeCommand(cmd: string): boolean {
+    // Reject command chaining with && or ; (e.g. "cd foo && rm -rf /")
+    // Pipes | are allowed — they're common and safe with allowlisted commands
+    if (cmd.includes("&&") || cmd.includes(";")) {
+      return false;
+    }
     return safeAllowlist.some((re) => re.test(cmd));
   }
 
@@ -113,14 +116,6 @@ export default function (pi: ExtensionAPI) {
   }
 
   function buildApprovalMessage(toolName: string, input: unknown): string {
-    if (toolName === "write") {
-      const path = (input as { path: string }).path;
-      const content = (input as { content: string }).content ?? "";
-      const preview =
-        content.length > 300 ? content.slice(0, 300) + "\n... (truncated)" : content;
-      return `Approve write to ${path}?\n\n${preview}`;
-    }
-
     if (toolName === "bash") {
       const command = (input as { command: string }).command;
       const preview =
@@ -140,31 +135,10 @@ export default function (pi: ExtensionAPI) {
   pi.on("tool_call", async (event, ctx) => {
     const toolName = event.toolName;
 
-    // ---- write / edit tools ----
-    //if (toolName === "write" || toolName === "edit") {
-    if (toolName === "write") {
-      const path = event.input.path as string;
-
-      if (approvedWritePaths.has(path)) {
-        return undefined;
-      }
-
-      if (!ctx.hasUI) {
-        return { block: true, reason: `${toolName} blocked (no UI)` };
-      }
-
-      const choice = await ctx.ui.select(
-        buildApprovalMessage(toolName, event.input),
-        ["Allow this", "Allow for this session", "Block"],
-      );
-
-      if (choice === "Allow for this session") {
-        approvedWritePaths.add(path);
-      }
-      return choice === "Block"
-        ? { block: true, reason: `${toolName} to "${path}" blocked by user` }
-        : undefined;
-    }
+    // ---- write tool gating disabled ----
+    // pi-tool-display handles write/edit rendering and diff previews.
+    // Custom gating is delegated to the user's own script if needed.
+    // if (toolName === "write") { ... }
 
     // ---- bash tool ----
     if (toolName === "bash") {
@@ -201,7 +175,6 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
-    approvedWritePaths.clear();
     approvedBashCommands.clear();
     if (ctx.hasUI) {
       ctx.ui.setStatus("tool-approval", "Approval: enabled");
