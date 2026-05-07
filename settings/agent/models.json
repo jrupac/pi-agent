@@ -12,6 +12,10 @@
         {
           "id": "local-planning",
           "name": "Local Planning"
+        },
+        {
+          "id": "local-gemma-31B",
+          "name": "Local Gemma 31B"
         }
       ]
     }
