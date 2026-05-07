@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  echo "Usage: pi-install <extension>" >&2
+  echo "       pi-install uninstall <extension>" >&2
+  echo "  e.g. pi-install npm:pi-show-diffs" >&2
+  echo "       pi-install uninstall npm:pi-show-diffs" >&2
+  exit 1
+}
+
+[ $# -eq 0 ] && usage
+
+SUBCOMMAND="install"
+if [ "$1" = "uninstall" ]; then
+  [ $# -ne 2 ] && usage
+  SUBCOMMAND="uninstall"
+  EXTENSION="$2"
+else
+  [ $# -ne 1 ] && usage
+  EXTENSION="$1"
+fi
+
+# Use the pi-agent directory itself as a dummy workspace (install/uninstall don't need one).
+export _PI_WORKSPACE="$SCRIPT_DIR"
+export _PI_BASENAME="pi-agent"
+export PI_SETTINGS="$SCRIPT_DIR/settings"
+
+# Ensure infrastructure services are up.
+docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --no-recreate
+
+if [ "$SUBCOMMAND" = "install" ]; then
+  # Temporary compose override that adds web-egress to the agent for this run only.
+  OVERRIDE=$(mktemp /tmp/pi-install-XXXXXX.yml)
+  trap 'rm -f "$OVERRIDE"' EXIT
+
+  cat > "$OVERRIDE" <<'EOF'
+services:
+  agent:
+    networks:
+      - web-egress
+EOF
+
+  docker compose -f "$SCRIPT_DIR/docker-compose.yml" -f "$OVERRIDE" \
+    run --rm agent install "$EXTENSION"
+else
+  # Uninstall only touches local settings — no egress needed.
+  docker compose -f "$SCRIPT_DIR/docker-compose.yml" \
+    run --rm agent uninstall "$EXTENSION"
+fi

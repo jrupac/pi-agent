@@ -1,0 +1,19 @@
+{
+  "providers": {
+    "local": {
+      "baseUrl": "http://llama-server:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "dummy",
+      "models": [
+        {
+          "id": "local-fast",
+          "name": "Local Fast"
+        },
+        {
+          "id": "local-planning",
+          "name": "Local Planning"
+        }
+      ]
+    }
+  }
+}

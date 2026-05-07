@@ -1,0 +1,30 @@
+networks:
+  llama-bridge:
+    external: true
+    name: llama-bridge
+  web-internal:
+    driver: bridge
+    internal: true
+  web-egress:
+    driver: bridge
+
+services:
+  web-skill:
+    build: ./web-skill
+    networks:
+      - web-internal
+      - web-egress
+    restart: unless-stopped
+
+  agent:
+    build: .
+    profiles: ["agent"]
+    networks:
+      - llama-bridge
+      - web-internal
+    volumes:
+      - "${_PI_WORKSPACE}:/${_PI_BASENAME}"
+      - "${PI_SETTINGS:-./settings}:/root/.pi"
+    working_dir: "/${_PI_BASENAME}"
+    stdin_open: true
+    tty: true

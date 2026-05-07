@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  echo "Usage: pi-run <path-to-repo>" >&2
+  exit 1
+}
+
+[ $# -ne 1 ] && usage
+[ ! -d "$1" ] && { echo "Error: '$1' is not a directory" >&2; exit 1; }
+
+export _PI_WORKSPACE
+_PI_WORKSPACE="$(realpath "$1")"
+
+export _PI_BASENAME
+_PI_BASENAME="$(basename "$_PI_WORKSPACE")"
+
+# Guard against basenames that would shadow container system directories.
+_RESERVED="bin boot dev etc home lib lib64 media mnt opt proc root run sbin srv sys tmp usr var"
+for _d in $_RESERVED; do
+  if [ "$_PI_BASENAME" = "$_d" ]; then
+    echo "Error: repo name '$_PI_BASENAME' conflicts with a container system directory." >&2
+    exit 1
+  fi
+done
+
+export PI_SETTINGS
+PI_SETTINGS="$SCRIPT_DIR/settings"
+
+# Ensure infrastructure services (web-skill, networks) are up before starting the agent.
+# --no-recreate means this is a no-op if everything is already running.
+docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --no-recreate
+
+exec docker compose -f "$SCRIPT_DIR/docker-compose.yml" run --rm agent
