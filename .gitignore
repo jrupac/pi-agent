@@ -1,0 +1,6 @@
+settings/npm-cache
+settings/npm-global
+
+settings/agent/sessions
+
+.claude/
